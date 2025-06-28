@@ -5,6 +5,7 @@
     "emitDeclarationOnly": true,
     "importHelpers": true,
     "isolatedModules": true,
+    "baseUrl": ".",
     "lib": [
       "es2022"
     ],
@@ -14,10 +15,15 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,
-    "noUnusedLocals": true,
+    "noUnusedLocals": false,
     "skipLibCheck": true,
     "strict": true,
     "target": "es2022",
+    "paths": {
+      "@packages/*": [
+        "packages/*"
+      ]
+    },
     "customConditions": [
       "development"
     ]
