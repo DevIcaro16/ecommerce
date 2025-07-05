@@ -2,9 +2,9 @@ import swaggerAutogen from "swagger-autogen";
 
 const doc = {
     info: {
-        title: "Auth Servuce API",
+        title: "Auth Service API",
         description: "Gerado automaticamente com documentação do Swagger!",
-        version: "1.0.0"
+        version: "1.0.2"
     },
 
     host: "localhost:6001",
