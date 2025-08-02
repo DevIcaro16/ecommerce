@@ -137,7 +137,7 @@ resource "aws_instance" "ecommerce_server" {
 # Key Pair
 resource "aws_key_pair" "ecommerce_key" {
   key_name   = "${var.project_name}-key"
-  public_key = file("${path.module}/ssh/public_ssh_key_aws")
+  public_key = file("${path.module}/ssh/public_ssh_key_aws_openssh")
 }
 
 # Elastic IP
