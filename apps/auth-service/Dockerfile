@@ -16,6 +16,9 @@ RUN npm ci --ignore-scripts
 COPY apps/ ./apps/
 COPY packages/ ./packages/
 
+# Gerar Prisma Client
+RUN npx prisma generate
+
 # Build da aplicação usando Nx
 RUN npx nx build auth-service
 
