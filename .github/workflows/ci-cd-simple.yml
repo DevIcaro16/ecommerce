@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ${{ github.repository_owner }}/ecommerce
 
 jobs:
   build-and-push:
@@ -105,9 +105,9 @@ jobs:
         run: |
           ssh ubuntu@${{ steps.get-ip.outputs.ip }} << 'EOF'
             # Update images in Kubernetes
-            kubectl set image deployment/api-gateway api-gateway=ghcr.io/${{ github.repository }}/api-gateway:${{ github.sha }} -n ecommerce
-            kubectl set image deployment/auth-service auth-service=ghcr.io/${{ github.repository }}/auth-service:${{ github.sha }} -n ecommerce
-            kubectl set image deployment/user-ui user-ui=ghcr.io/${{ github.repository }}/user-ui:${{ github.sha }} -n ecommerce
+            kubectl set image deployment/api-gateway api-gateway=ghcr.io/${{ github.repository_owner }}/ecommerce/api-gateway:${{ github.sha }} -n ecommerce
+            kubectl set image deployment/auth-service auth-service=ghcr.io/${{ github.repository_owner }}/ecommerce/auth-service:${{ github.sha }} -n ecommerce
+            kubectl set image deployment/user-ui user-ui=ghcr.io/${{ github.repository_owner }}/ecommerce/user-ui:${{ github.sha }} -n ecommerce
             
             # Wait for rollout
             kubectl rollout status deployment/api-gateway -n ecommerce
