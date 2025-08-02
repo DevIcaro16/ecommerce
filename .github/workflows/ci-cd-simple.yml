@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI/CD Pipeline (Simplified)
 
 on:
   push:
@@ -11,33 +11,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build applications
-        run: |
-          # Build API Gateway
-          npx nx build api-gateway
-
-          # Build Auth Service
-          npx nx build auth-service
-
-          # Build User UI
-          npx nx build user-ui
-
   build-and-push:
-    needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
 
