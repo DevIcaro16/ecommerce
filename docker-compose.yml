@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  api-gateway:
+    build:
+      context: ./apps/api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+      - PORT=8080
+      - HOST=0.0.0.0
+    networks:
+      - ecommerce-network
+    depends_on:
+      - auth-service
+
+  auth-service:
+    build:
+      context: ./apps/auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "6001:6001"
+    environment:
+      - NODE_ENV=development
+      - PORT=6001
+      - HOST=0.0.0.0
+      - JWT_SECRET=your-jwt-secret-key
+      - JWT_EXPIRES_IN=24h
+    networks:
+      - ecommerce-network
+
+  user-ui:
+    build:
+      context: ./apps/user-ui
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - NEXT_PUBLIC_API_URL=http://api-gateway:8080
+      - NEXT_PUBLIC_AUTH_URL=http://auth-service:6001
+    networks:
+      - ecommerce-network
+    depends_on:
+      - api-gateway
+      - auth-service
+
+networks:
+  ecommerce-network:
+    driver: bridge

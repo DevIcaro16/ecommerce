@@ -23,7 +23,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.get('/', (req, res) => {
-    res.send({ 'message': 'Olá, API, icarus!' });
+    res.send({ 'message': 'Olá, API, ominx!' });
 });
 
 //Docs - Swagger

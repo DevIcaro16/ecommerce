@@ -31,7 +31,7 @@ COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 
 # Expor porta
-EXPOSE 3001
+EXPOSE 3000
 
 # Mudar para usuário não-root
 USER nodejs
@@ -41,4 +41,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD node dist/health-check.js || exit 1
 
 # Comando para iniciar a aplicação
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/main.js"] 

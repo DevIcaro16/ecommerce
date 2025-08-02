@@ -45,6 +45,8 @@ test-output
 .env
 /generated/prisma
 
+/infra/terraform/ssh
+
 # Next.js
 .next
 out
