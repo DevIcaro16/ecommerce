@@ -3,18 +3,20 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Copiar arquivos de dependências
+# Copiar arquivos de dependências do workspace
 COPY package*.json ./
+COPY nx.json ./
 COPY tsconfig*.json ./
 
-# Instalar dependências
-RUN npm ci --only=production
+# Instalar todas as dependências
+RUN npm ci
 
 # Copiar código fonte
-COPY src/ ./src/
+COPY apps/ ./apps/
+COPY packages/ ./packages/
 
-# Build da aplicação
-RUN npm run build
+# Build da aplicação usando Nx
+RUN npx nx build api-gateway
 
 # Imagem de produção
 FROM node:18-alpine AS production
@@ -27,7 +29,7 @@ RUN adduser -S nodejs -u 1001
 
 # Copiar dependências e build da etapa anterior
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/apps/api-gateway/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 
 # Expor porta
