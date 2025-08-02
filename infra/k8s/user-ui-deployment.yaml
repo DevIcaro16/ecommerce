@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: user-ui
-          image: ghcr.io/devicaro16/user-ui:latest
+          image: docker.io/devicaro16/user-ui:latest
           ports:
             - containerPort: 3000
           env:

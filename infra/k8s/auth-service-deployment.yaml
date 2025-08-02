@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: auth-service
-          image: ghcr.io/devicaro16/auth-service:latest
+          image: docker.io/devicaro16/auth-service:latest
           ports:
             - containerPort: 3001
           env:
