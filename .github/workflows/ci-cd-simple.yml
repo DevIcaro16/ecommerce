@@ -33,7 +33,7 @@ jobs:
         with:
           context: ./apps/api-gateway
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api-gateway:${{ github.sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/ecommerce/api-gateway:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -42,7 +42,7 @@ jobs:
         with:
           context: ./apps/auth-service
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/auth-service:${{ github.sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/ecommerce/auth-service:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -51,7 +51,7 @@ jobs:
         with:
           context: ./apps/user-ui
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/user-ui:${{ github.sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/ecommerce/user-ui:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
