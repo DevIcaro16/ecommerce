@@ -159,16 +159,26 @@ jobs:
 
       - name: Setup Kubernetes
         run: |
-          # Parar Minikube se estiver rodando
-          minikube stop || true
-          minikube delete || true
-
-          # Iniciar Minikube com driver docker (mais simples)
-          minikube start --driver=docker --force
+          # Verificar se Minikube já está rodando
+          if minikube status &> /dev/null; then
+            echo "Minikube já está rodando. Verificando status..."
+            minikube status
+          else
+            echo "Iniciando Minikube..."
+            minikube start --driver=docker --force
+          fi
 
           # Verificar status do Kubernetes
           kubectl cluster-info
           kubectl get nodes
+
+          # Verificar se o namespace já existe
+          if kubectl get namespace ecommerce &> /dev/null; then
+            echo "Namespace 'ecommerce' já existe"
+          else
+            echo "Criando namespace 'ecommerce'..."
+            kubectl create namespace ecommerce
+          fi
 
       - name: Setup Ingress Controller
         run: |
@@ -178,70 +188,90 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          # Aplicar namespace
-          kubectl create namespace ecommerce --dry-run=client -o yaml | kubectl apply -f -
+          # Verificar deployments existentes
+          echo "Verificando deployments existentes..."
+          kubectl get deployments -n ecommerce || echo "Nenhum deployment encontrado"
 
-          # Aplicar ConfigMap
+          # Aplicar ConfigMap (sempre atualizar)
+          echo "Aplicando ConfigMap..."
           kubectl apply -f infra/k8s/configmap.yaml
 
-          # Aplicar deployments
+          # Aplicar deployments com estratégia de atualização
+          echo "Aplicando deployments..."
           kubectl apply -f infra/k8s/api-gateway-deployment.yaml
           kubectl apply -f infra/k8s/auth-service-deployment.yaml
           kubectl apply -f infra/k8s/user-ui-deployment.yaml
 
           # Aplicar ingress
+          echo "Aplicando ingress..."
           kubectl apply -f infra/k8s/ingress.yaml
 
-          # Atualizar imagens nos deployments
-          kubectl set image deployment/api-gateway api-gateway=devicaro18/ominx-api-gateway:${{ env.VERSION }} -n ecommerce
-          kubectl set image deployment/auth-service auth-service=devicaro18/ominx-auth-service:${{ env.VERSION }} -n ecommerce
-          kubectl set image deployment/user-ui user-ui=devicaro18/ominx-user-ui:${{ env.VERSION }} -n ecommerce
+          # Atualizar imagens nos deployments existentes
+          echo "Atualizando imagens dos deployments..."
+          kubectl set image deployment/api-gateway api-gateway=devicaro18/ominx-api-gateway:${{ env.VERSION }} -n ecommerce --record
+          kubectl set image deployment/auth-service auth-service=devicaro18/ominx-auth-service:${{ env.VERSION }} -n ecommerce --record
+          kubectl set image deployment/user-ui user-ui=devicaro18/ominx-user-ui:${{ env.VERSION }} -n ecommerce --record
 
-          # Aguardar rollout
-          echo "Waiting for deployments to be ready..."
-          kubectl rollout status deployment/api-gateway -n ecommerce --timeout=300s
-          kubectl rollout status deployment/auth-service -n ecommerce --timeout=300s
-          kubectl rollout status deployment/user-ui -n ecommerce --timeout=300s
+          # Aguardar rollout com retry
+          echo "Aguardando rollouts..."
+          for deployment in api-gateway auth-service user-ui; do
+            echo "Aguardando rollout do deployment: $deployment"
+            kubectl rollout status deployment/$deployment -n ecommerce --timeout=300s || {
+              echo "Rollout falhou para $deployment. Verificando status..."
+              kubectl describe deployment $deployment -n ecommerce
+              kubectl get pods -n ecommerce -l app=$deployment
+              exit 1
+            }
+          done
+
+          # Verificar se todos os pods estão prontos
+          echo "Verificando status dos pods..."
+          kubectl get pods -n ecommerce
 
       - name: Wait for services to be ready
         run: |
-          echo "Waiting for services to be ready..."
+          echo "Aguardando serviços ficarem prontos..."
           sleep 30
 
           # Verificar status dos pods
-          echo "=== Pods Status ==="
+          echo "=== Status dos Pods ==="
           kubectl get pods -n ecommerce
 
           # Verificar status dos serviços
-          echo "=== Services Status ==="
+          echo "=== Status dos Serviços ==="
           kubectl get services -n ecommerce
 
           # Verificar status do ingress
-          echo "=== Ingress Status ==="
+          echo "=== Status do Ingress ==="
           kubectl get ingress -n ecommerce
 
-          # Health check com retry
-          echo "Performing health checks..."
+          # Health check com NodePort (mais confiável)
+          echo "Realizando health checks via NodePort..."
           MINIKUBE_IP=$(minikube ip)
 
-          # Adicionar hosts temporariamente para teste
-          echo "$MINIKUBE_IP api.ecommerce.local" | sudo tee -a /etc/hosts
-          echo "$MINIKUBE_IP auth.ecommerce.local" | sudo tee -a /etc/hosts
-          echo "$MINIKUBE_IP ecommerce.local" | sudo tee -a /etc/hosts
-
+          # Health check via NodePort
           for i in {1..5}; do
-            echo "Attempt $i of 5"
-            if curl -f http://ecommerce.local/health && curl -f http://api.ecommerce.local/ && curl -f http://auth.ecommerce.local/; then
-              echo "Health checks passed!"
+            echo "Tentativa $i de 5"
+            
+            # Testar via NodePort
+            if curl -f http://localhost:30080/ && \
+               curl -f http://localhost:30061/ && \
+               curl -f http://localhost:30301/; then
+              echo "Health checks via NodePort passaram!"
               break
             else
-              echo "Health checks failed, waiting 10 seconds..."
+              echo "Health checks falharam, aguardando 10 segundos..."
               sleep 10
             fi
           done
 
-          # Final health check
-          curl -f http://ecommerce.local/health || (echo "Health check failed" && exit 1)
+          # Health check final via NodePort
+          echo "Health check final via NodePort..."
+          curl -f http://localhost:30080/ || (echo "API Gateway health check failed" && exit 1)
+          curl -f http://localhost:30061/ || (echo "Auth Service health check failed" && exit 1)
+          curl -f http://localhost:30301/ || (echo "User UI health check failed" && exit 1)
+
+          echo "Todos os health checks passaram!"
 
       - name: Cleanup old images and containers
         run: |
@@ -262,18 +292,25 @@ jobs:
 
       - name: Send deployment notification
         run: |
-          MINIKUBE_IP=$(sudo minikube ip)
-          echo "Deploy finalizado com Sucesso!!"
-          echo "Main URL: http://$MINIKUBE_IP"
-          echo "API Gateway: http://$MINIKUBE_IP/api/"
-          echo "Auth Service: http://$MINIKUBE_IP/auth/"
-          echo "Version: ${{ env.VERSION }}"
-          echo "Deployed at: ${{ env.DEPLOYMENT_TIME }}"
-          echo "Minikube IP: $MINIKUBE_IP"
+          MINIKUBE_IP=$(minikube ip)
+          echo "🚀 Deploy finalizado com Sucesso!!"
+          echo "📊 Version: ${{ env.VERSION }}"
+          echo "⏰ Deployed at: ${{ env.DEPLOYMENT_TIME }}"
+          echo "🌐 Minikube IP: $MINIKUBE_IP"
+          echo ""
+          echo "🔗 URLs de Acesso (NodePort):"
+          echo "   API Gateway: http://localhost:38080"
+          echo "   Auth Service: http://localhost:36001"
+          echo "   User UI: http://localhost:33001"
+          echo ""
+          echo "🔗 URLs de Acesso (Ingress):"
+          echo "   API Gateway: http://api.ecommerce.local"
+          echo "   Auth Service: http://auth.ecommerce.local"
+          echo "   User UI: http://ecommerce.local"
 
       - name: Create deployment summary
         run: |
-          MINIKUBE_IP=$(sudo minikube ip)
+          MINIKUBE_IP=$(minikube ip)
           cat > deployment-summary.md << EOF
           # Deployment Summary
 
@@ -288,23 +325,34 @@ jobs:
           - **Auth Service**: ${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:${{ env.VERSION }}
           - **User UI**: ${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }}
 
-          ## URLs
-          - **Main**: http://$MINIKUBE_IP
-          - **API Gateway**: http://$MINIKUBE_IP/api/
-          - **Auth Service**: http://$MINIKUBE_IP/auth/
-          - **Health Check**: http://$MINIKUBE_IP/health
+          ## URLs de Acesso
+          ### NodePort (Recomendado)
+          - **API Gateway**: http://localhost:30080
+          - **Auth Service**: http://localhost:30061
+          - **User UI**: http://localhost:30301
+
+          ### Ingress (Requer configuração de hosts)
+          - **API Gateway**: http://api.ecommerce.local
+          - **Auth Service**: http://auth.ecommerce.local
+          - **User UI**: http://ecommerce.local
 
           ## Kubernetes Resources
           - **Namespace**: ecommerce
           - **Pods**: 3 (api-gateway, auth-service, user-ui)
-          - **Services**: 3 (ClusterIP)
+          - **Services**: 3 (NodePort)
           - **Ingress**: 1 (nginx)
 
-          ## Health Check
-          - API Gateway: Running
-          - Auth Service: Running
-          - User UI: Running
-          - Ingress Controller: Running
+          ## Health Check Status
+          - API Gateway: ✅ Running (NodePort: 30080)
+          - Auth Service: ✅ Running (NodePort: 30061)
+          - User UI: ✅ Running (NodePort: 30301)
+          - Ingress Controller: ✅ Running
+
+          ## Rollout Strategy
+          - **Update Strategy**: Rolling Update
+          - **Max Unavailable**: 25%
+          - **Max Surge**: 25%
+          - **Image Update**: Automatic via kubectl set image
           EOF
 
       - name: Upload deployment summary
