@@ -140,9 +140,9 @@ jobs:
           docker stop $(docker ps -q) || true
           docker rm $(docker ps -aq) || true
 
-          # Parar serviços do sistema que possam estar usando as portas
-          sudo systemctl stop nginx || true
-          sudo systemctl disable nginx || true
+          # NÃO parar o Nginx - manter para serviço web
+          # sudo systemctl stop nginx || true
+          # sudo systemctl disable nginx || true
 
       - name: Clean up Docker resources
         run: |
@@ -263,6 +263,21 @@ jobs:
 
           # Final health check
           curl -f http://ecommerce.local/health || (echo "Health check failed" && exit 1)
+
+      - name: Setup Nginx Proxy
+        run: |
+          echo "Configurando Nginx com proxy reverso..."
+
+          # Tornar script executável
+          chmod +x infra/scripts/setup-nginx-k8s.sh
+
+          # Executar configuração do Nginx
+          ./infra/scripts/setup-nginx-k8s.sh
+
+          # Verificar se Nginx está rodando
+          sudo systemctl status nginx
+
+          echo "Nginx configurado com proxy reverso para Kubernetes!"
 
       - name: Cleanup old images and containers
         run: |
