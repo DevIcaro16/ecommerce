@@ -33,6 +33,11 @@ spec:
                 configMapKeyRef:
                   name: ecommerce-config
                   key: AUTH_SERVICE_HOST
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-secrets
+                  key: DATABASE_URL
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:

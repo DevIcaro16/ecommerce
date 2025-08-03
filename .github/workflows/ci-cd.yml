@@ -194,6 +194,7 @@ jobs:
 
           # Criar Secret dinamicamente
           kubectl create secret generic ecommerce-secrets \
+            --from-literal=DATABASE_URL="${{ secrets.DATABASE_URL }}" \
             --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
             --from-literal=JWT_EXPIRES_IN="${{ secrets.JWT_EXPIRES_IN }}" \
             --from-literal=REDIS_URL="${{ secrets.REDIS_URL }}" \

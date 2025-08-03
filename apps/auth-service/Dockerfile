@@ -10,7 +10,7 @@ COPY tsconfig*.json ./
 COPY prisma/ ./prisma/
 
 # Instalar todas as dependências
-RUN npm ci --ignore-scripts
+RUN npm ci
 
 # Copiar código fonte
 COPY apps/ ./apps/
@@ -31,6 +31,12 @@ WORKDIR /app
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/apps/auth-service/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
+COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+
+# Definir variável de ambiente para produção
+ENV NODE_ENV=production
 
 # Comando para iniciar a aplicação
 CMD ["node", "dist/main.js"]
