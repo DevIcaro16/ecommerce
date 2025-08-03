@@ -153,7 +153,7 @@ jobs:
       - name: Setup Kubernetes
         run: |
 
-          sudo minikube start --driver=none
+          sudo minikube start --driver=docker --force
 
           # Verificar status do Kubernetes
           sudo kubectl cluster-info
