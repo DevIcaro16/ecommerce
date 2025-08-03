@@ -30,13 +30,13 @@ spec:
                   key: USER_UI_PORT
             - name: NEXT_PUBLIC_API_URL
               valueFrom:
-                configMapKeyRef:
-                  name: ecommerce-config
+                secretKeyRef:
+                  name: ecommerce-secrets
                   key: NEXT_PUBLIC_API_URL
             - name: NEXT_PUBLIC_AUTH_URL
               valueFrom:
-                configMapKeyRef:
-                  name: ecommerce-config
+                secretKeyRef:
+                  name: ecommerce-secrets
                   key: NEXT_PUBLIC_AUTH_URL
           resources:
             requests:
@@ -58,7 +58,7 @@ spec:
   ports:
     - port: 3001
       targetPort: 3001
-      nodePort: 30031
+      nodePort: 30301
       protocol: TCP
       name: http
   selector:

@@ -118,6 +118,12 @@ jobs:
           NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_AUTH_URL=${{ secrets.NEXT_PUBLIC_AUTH_URL }}
 
+          # Configurações Redis (Upstash)
+          REDIS_URL=${{ secrets.REDIS_URL }}
+          REDIS_HOST=${{ secrets.REDIS_HOST }}
+          REDIS_PORT=${{ secrets.REDIS_PORT }}
+          REDIS_PASS=${{ secrets.REDIS_PASS }}
+
           # Configurações para EC2/AWS
           EC2_PUBLIC_IP=${{ secrets.EC2_PUBLIC_IP }}
           DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
@@ -184,8 +190,20 @@ jobs:
           # Aplicar namespace
           kubectl create namespace ecommerce --dry-run=client -o yaml | kubectl apply -f -
 
-          # Aplicar ConfigMap
+          # Aplicar ConfigMap e Secret
           kubectl apply -f infra/k8s/configmap.yaml
+
+          # Criar Secret dinamicamente
+          kubectl create secret generic ecommerce-secrets \
+            --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            --from-literal=JWT_EXPIRES_IN="${{ secrets.JWT_EXPIRES_IN }}" \
+            --from-literal=REDIS_URL="${{ secrets.REDIS_URL }}" \
+            --from-literal=REDIS_HOST="${{ secrets.REDIS_HOST }}" \
+            --from-literal=REDIS_PORT="${{ secrets.REDIS_PORT }}" \
+            --from-literal=REDIS_PASS="${{ secrets.REDIS_PASS }}" \
+            --from-literal=NEXT_PUBLIC_API_URL="${{ secrets.NEXT_PUBLIC_API_URL }}" \
+            --from-literal=NEXT_PUBLIC_AUTH_URL="${{ secrets.NEXT_PUBLIC_AUTH_URL }}" \
+            -n ecommerce --dry-run=client -o yaml | kubectl apply -f -
 
           # Aplicar deployments
           kubectl apply -f infra/k8s/api-gateway-deployment.yaml
