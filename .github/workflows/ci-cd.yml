@@ -153,43 +153,43 @@ jobs:
       - name: Setup Kubernetes
         run: |
           # Iniciar Minikube se não estiver rodando
-          if ! minikube status >/dev/null 2>&1; then
+          if ! sudo minikube status >/dev/null 2>&1; then
             echo "Starting Minikube..."
-            minikube start --driver=docker --force
+            sudo minikube start --driver=docker --force
           else
             echo "Minikube is already running"
           fi
 
           # Verificar status do Kubernetes
-          kubectl cluster-info
-          kubectl get nodes
+          sudo kubectl cluster-info
+          sudo kubectl get nodes
 
       - name: Deploy to Kubernetes
         run: |
           # Aplicar namespace
-          kubectl create namespace ecommerce --dry-run=client -o yaml | kubectl apply -f -
+          sudo kubectl create namespace ecommerce --dry-run=client -o yaml | sudo kubectl apply -f -
 
           # Aplicar ConfigMap
-          kubectl apply -f infra/k8s/configmap.yaml
+          sudo kubectl apply -f infra/k8s/configmap.yaml
 
           # Aplicar deployments
-          kubectl apply -f infra/k8s/api-gateway-deployment.yaml
-          kubectl apply -f infra/k8s/auth-service-deployment.yaml
-          kubectl apply -f infra/k8s/user-ui-deployment.yaml
+          sudo kubectl apply -f infra/k8s/api-gateway-deployment.yaml
+          sudo kubectl apply -f infra/k8s/auth-service-deployment.yaml
+          sudo kubectl apply -f infra/k8s/user-ui-deployment.yaml
 
           # Aplicar ingress
-          kubectl apply -f infra/k8s/ingress.yaml
+          sudo kubectl apply -f infra/k8s/ingress.yaml
 
           # Atualizar imagens nos deployments
-          kubectl set image deployment/api-gateway api-gateway=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:${{ env.VERSION }} -n ecommerce
-          kubectl set image deployment/auth-service auth-service=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:${{ env.VERSION }} -n ecommerce
-          kubectl set image deployment/user-ui user-ui=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }} -n ecommerce
+          sudo kubectl set image deployment/api-gateway api-gateway=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:${{ env.VERSION }} -n ecommerce
+          sudo kubectl set image deployment/auth-service auth-service=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:${{ env.VERSION }} -n ecommerce
+          sudo kubectl set image deployment/user-ui user-ui=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }} -n ecommerce
 
           # Aguardar rollout
           echo "Waiting for deployments to be ready..."
-          kubectl rollout status deployment/api-gateway -n ecommerce --timeout=300s
-          kubectl rollout status deployment/auth-service -n ecommerce --timeout=300s
-          kubectl rollout status deployment/user-ui -n ecommerce --timeout=300s
+          sudo kubectl rollout status deployment/api-gateway -n ecommerce --timeout=300s
+          sudo kubectl rollout status deployment/auth-service -n ecommerce --timeout=300s
+          sudo kubectl rollout status deployment/user-ui -n ecommerce --timeout=300s
 
       - name: Wait for services to be ready
         run: |
@@ -198,19 +198,19 @@ jobs:
 
           # Verificar status dos pods
           echo "=== Pods Status ==="
-          kubectl get pods -n ecommerce
+          sudo kubectl get pods -n ecommerce
 
           # Verificar status dos serviços
           echo "=== Services Status ==="
-          kubectl get services -n ecommerce
+          sudo kubectl get services -n ecommerce
 
           # Verificar status do ingress
           echo "=== Ingress Status ==="
-          kubectl get ingress -n ecommerce
+          sudo kubectl get ingress -n ecommerce
 
           # Health check com retry
           echo "Performing health checks..."
-          MINIKUBE_IP=$(minikube ip)
+          MINIKUBE_IP=$(sudo minikube ip)
 
           for i in {1..5}; do
             echo "Attempt $i of 5"
@@ -245,7 +245,7 @@ jobs:
 
       - name: Send deployment notification
         run: |
-          MINIKUBE_IP=$(minikube ip)
+          MINIKUBE_IP=$(sudo minikube ip)
           echo "Deploy finalizado com Sucesso!!"
           echo "Main URL: http://$MINIKUBE_IP"
           echo "API Gateway: http://$MINIKUBE_IP/api/"
@@ -256,7 +256,7 @@ jobs:
 
       - name: Create deployment summary
         run: |
-          MINIKUBE_IP=$(minikube ip)
+          MINIKUBE_IP=$(sudo minikube ip)
           cat > deployment-summary.md << EOF
           # Deployment Summary
 
