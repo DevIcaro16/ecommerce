@@ -10,13 +10,11 @@ const swaggerDocument = require("./swagger-output.js");
 const app = express();
 
 //Permite reqs do seguinte endereço 
-// app.use(cors({
-//     origin: ['http://localhost:3000'],
-//     allowedHeaders: ['Authorization', "Content-Type"],
-//     credentials: true
-// }));
-
-app.use(cors());
+app.use(cors({
+    origin: '*', // Liberado para todos para teste
+    allowedHeaders: ['Authorization', "Content-Type"],
+    credentials: true
+}));
 
 app.use(express.json());
 

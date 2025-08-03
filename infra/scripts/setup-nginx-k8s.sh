@@ -56,7 +56,7 @@ else
 fi
 
 # Testar api-gateway
-if curl -s http://localhost:30080/gateway-health > /dev/null; then
+if curl -s http://localhost:30080/ > /dev/null; then
     echo -e "${GREEN}✅ API Gateway: http://localhost:30080${NC}"
 else
     echo -e "${RED}❌ API Gateway não está respondendo${NC}"
@@ -72,13 +72,11 @@ fi
 # Aplicar configuração do Nginx
 echo -e "${GREEN}📝 Aplicando configuração do Nginx...${NC}"
 
-# Copiar configuração
-sudo cp infra/nginx/ominx-k8s.conf /etc/nginx/conf.d/ominx.conf
 
 # Testar configuração do Nginx
 if sudo nginx -t; then
     echo -e "${GREEN}✅ Configuração do Nginx está válida${NC}"
-    
+
     # Recarregar Nginx
     sudo systemctl reload nginx
     echo -e "${GREEN}✅ Nginx recarregado com sucesso${NC}"
@@ -98,7 +96,7 @@ echo -e "${YELLOW}   Frontend: http://ominx.shop${NC}"
 echo -e "${YELLOW}   API Gateway: http://ominx.shop/api${NC}"
 echo -e "${YELLOW}   Auth Service: http://ominx.shop/auth${NC}"
 echo -e "${YELLOW}   Swagger Docs: http://ominx.shop/api-docs${NC}"
-echo -e "${YELLOW}   Health Check: http://ominx.shop/gateway-health${NC}"
+echo -e "${YELLOW}   Health Check: http://ominx.shop/health${NC}"
 
 echo -e "${GREEN}💡 Para parar os port-forwards:${NC}"
-echo -e "${YELLOW}   pkill -f 'kubectl port-forward'${NC}" 
+echo -e "${YELLOW}   pkill -f 'kubectl port-forward'${NC}"

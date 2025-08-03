@@ -221,11 +221,6 @@ jobs:
           kubectl rollout status deployment/auth-service -n ecommerce --timeout=300s
           kubectl rollout status deployment/user-ui -n ecommerce --timeout=300s
 
-          #script nodeport
-
-          chmod +x ./infra/scripts/setup-nginx-k8s.sh
-          ./infra/scripts/setup-nginx-k8s.sh
-
       - name: Wait for services to be ready
         run: |
           echo "Waiting for services to be ready..."
@@ -251,6 +246,22 @@ jobs:
           echo "$MINIKUBE_IP api.ecommerce.local" | sudo tee -a /etc/hosts
           echo "$MINIKUBE_IP auth.ecommerce.local" | sudo tee -a /etc/hosts
           echo "$MINIKUBE_IP ecommerce.local" | sudo tee -a /etc/hosts
+
+      - name: Setup Nginx Proxy
+        run: |
+          echo "Configurando Nginx com proxy reverso..."
+
+          # Tornar script executável
+          chmod +x infra/scripts/setup-nginx-k8s.sh
+
+          # Executar configuração do Nginx
+          ./infra/scripts/setup-nginx-k8s.sh
+
+          # Verificar se Nginx está rodando
+          sudo systemctl status nginx
+          sudo systemctl start nginx          
+
+          echo "Nginx configurado com proxy reverso para Kubernetes!"
 
       - name: Cleanup old images and containers
         run: |
