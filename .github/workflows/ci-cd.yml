@@ -131,6 +131,7 @@ jobs:
           # Configurações do Servidor
           HOST=0.0.0.0
           PORT=8080
+          AUTH_SERVICE_NODEPORT=30061
           NODE_ENV=production
           EOF
 

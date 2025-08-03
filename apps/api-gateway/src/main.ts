@@ -45,14 +45,15 @@ app.get('/gateway-health', (req, res) => {
   res.send({ message: 'Bem vindo ao api-gateway!' });
 });
 
-app.use('/', proxy("http://localhost:6001"));
-
-
+// Usar NodePort do auth-service (30061) em vez da porta interna (6001)
+const AUTH_SERVICE_NODEPORT = process.env.AUTH_SERVICE_NODEPORT || '6001';
+app.use('/', proxy(`http://localhost:${AUTH_SERVICE_NODEPORT}`));
 
 const port = process.env.PORT || 8080;
 
 const server = app.listen(port, () => {
   console.log(`api-gateway ON no endereço: http://localhost:${port}/api`);
+  console.log(`Proxy para: http://localhost:${AUTH_SERVICE_NODEPORT}`);
 });
 
 server.on('error', console.error);
