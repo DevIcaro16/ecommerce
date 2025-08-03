@@ -152,39 +152,43 @@ jobs:
 
       - name: Setup Kubernetes
         run: |
+          # Parar Minikube se estiver rodando
+          minikube stop || true
+          minikube delete || true
 
-          sudo minikube start --driver=docker --force
+          # Iniciar Minikube com driver none (mais simples)
+          minikube start --driver=none --force
 
           # Verificar status do Kubernetes
-          sudo kubectl cluster-info
-          sudo kubectl get nodes
+          kubectl cluster-info
+          kubectl get nodes
 
       - name: Deploy to Kubernetes
         run: |
           # Aplicar namespace
-          sudo kubectl create namespace ecommerce --dry-run=client -o yaml | sudo kubectl apply -f -
+          kubectl create namespace ecommerce --dry-run=client -o yaml | kubectl apply -f -
 
           # Aplicar ConfigMap
-          sudo kubectl apply -f infra/k8s/configmap.yaml
+          kubectl apply -f infra/k8s/configmap.yaml
 
           # Aplicar deployments
-          sudo kubectl apply -f infra/k8s/api-gateway-deployment.yaml
-          sudo kubectl apply -f infra/k8s/auth-service-deployment.yaml
-          sudo kubectl apply -f infra/k8s/user-ui-deployment.yaml
+          kubectl apply -f infra/k8s/api-gateway-deployment.yaml
+          kubectl apply -f infra/k8s/auth-service-deployment.yaml
+          kubectl apply -f infra/k8s/user-ui-deployment.yaml
 
           # Aplicar ingress
-          sudo kubectl apply -f infra/k8s/ingress.yaml
+          kubectl apply -f infra/k8s/ingress.yaml
 
           # Atualizar imagens nos deployments
-          sudo kubectl set image deployment/api-gateway api-gateway=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:${{ env.VERSION }} -n ecommerce
-          sudo kubectl set image deployment/auth-service auth-service=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:${{ env.VERSION }} -n ecommerce
-          sudo kubectl set image deployment/user-ui user-ui=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }} -n ecommerce
+          kubectl set image deployment/api-gateway api-gateway=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:${{ env.VERSION }} -n ecommerce
+          kubectl set image deployment/auth-service auth-service=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:${{ env.VERSION }} -n ecommerce
+          kubectl set image deployment/user-ui user-ui=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }} -n ecommerce
 
           # Aguardar rollout
           echo "Waiting for deployments to be ready..."
-          sudo kubectl rollout status deployment/api-gateway -n ecommerce --timeout=300s
-          sudo kubectl rollout status deployment/auth-service -n ecommerce --timeout=300s
-          sudo kubectl rollout status deployment/user-ui -n ecommerce --timeout=300s
+          kubectl rollout status deployment/api-gateway -n ecommerce --timeout=300s
+          kubectl rollout status deployment/auth-service -n ecommerce --timeout=300s
+          kubectl rollout status deployment/user-ui -n ecommerce --timeout=300s
 
       - name: Wait for services to be ready
         run: |
@@ -193,19 +197,19 @@ jobs:
 
           # Verificar status dos pods
           echo "=== Pods Status ==="
-          sudo kubectl get pods -n ecommerce
+          kubectl get pods -n ecommerce
 
           # Verificar status dos serviços
           echo "=== Services Status ==="
-          sudo kubectl get services -n ecommerce
+          kubectl get services -n ecommerce
 
           # Verificar status do ingress
           echo "=== Ingress Status ==="
-          sudo kubectl get ingress -n ecommerce
+          kubectl get ingress -n ecommerce
 
           # Health check com retry
           echo "Performing health checks..."
-          MINIKUBE_IP=$(sudo minikube ip)
+          MINIKUBE_IP=$(minikube ip)
 
           for i in {1..5}; do
             echo "Attempt $i of 5"
