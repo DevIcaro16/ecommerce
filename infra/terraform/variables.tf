@@ -43,11 +43,14 @@ variable "public_subnet_cidrs" {
 variable "ec2_ami" {
   description = "AMI ID for EC2 instance"
   type        = string
-  default     = "ami-0c02fb55956c7d316" # Amazon Linux 2023
+  default     = "ami-08a6efd148b1f7504" # Amazon Linux 2023
 }
+
 
 variable "ec2_instance_type" {
   description = "EC2 instance type"
   type        = string
   default     = "t2.micro"
-} 
+}
+
+ 

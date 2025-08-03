@@ -45,6 +45,12 @@ test-output
 .env
 /generated/prisma
 
+/infra/terraform/.terraform
+
+/infra/terraform/.terraform.lock.hcl
+
+/infra/terraform/terraform.tfstate.backup
+
 /infra/terraform/ssh
 
 # Next.js

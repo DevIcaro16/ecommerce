@@ -1,12 +1,27 @@
 version: '3.8'
 
 services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx-docker.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - ecommerce-network
+    depends_on:
+      - api-gateway
+      - auth-service
+      - user-ui
+
   api-gateway:
     build:
       context: .
       dockerfile: ./apps/api-gateway/Dockerfile
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     environment:
       - NODE_ENV=development
       - PORT=8080
@@ -20,8 +35,8 @@ services:
     build:
       context: .
       dockerfile: ./apps/auth-service/Dockerfile
-    ports:
-      - "6001:6001"
+    expose:
+      - "6001"
     environment:
       - NODE_ENV=development
       - PORT=6001
@@ -35,8 +50,8 @@ services:
     build:
       context: .
       dockerfile: ./apps/user-ui/Dockerfile
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001"
     environment:
       - NODE_ENV=development
       - PORT=3001
