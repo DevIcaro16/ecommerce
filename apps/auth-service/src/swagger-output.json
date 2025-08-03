@@ -5,7 +5,7 @@
     "description": "Gerado automaticamente com documentação do Swagger!",
     "version": "1.0.0"
   },
-  "host": "https://www.ominx.shop",
+  "host": "www.ominx.shop",
   "basePath": "/api",
   "schemes": [
     "https"

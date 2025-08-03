@@ -141,10 +141,6 @@ jobs:
           docker stop $(docker ps -q) || true
           docker rm $(docker ps -aq) || true
 
-          # NÃO parar o Nginx - manter para serviço web
-          # sudo systemctl stop nginx || true
-          # sudo systemctl disable nginx || true
-
       - name: Clean up Docker resources
         run: |
           # Clean up any remaining containers
@@ -224,6 +220,11 @@ jobs:
           kubectl rollout status deployment/api-gateway -n ecommerce --timeout=300s
           kubectl rollout status deployment/auth-service -n ecommerce --timeout=300s
           kubectl rollout status deployment/user-ui -n ecommerce --timeout=300s
+
+          #script nodeport
+
+          chmod +x ./infra/scripts/setup-nginx-k8s.sh
+          ./infra/scripts/setup-nginx-k8s.sh
 
       - name: Wait for services to be ready
         run: |
