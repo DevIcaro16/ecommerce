@@ -72,6 +72,15 @@ fi
 # Aplicar configuração do Nginx
 echo -e "${GREEN}📝 Aplicando configuração do Nginx...${NC}"
 
+# Copiar configuração
+sudo cp infra/nginx/ominx-k8s.conf /etc/nginx/conf.d/ominx.conf
+
+# Copiar páginas de erro customizadas
+sudo mkdir -p /var/www/html
+sudo cp infra/nginx/404.html /var/www/html/404.html
+sudo cp infra/nginx/500.html /var/www/html/500.html
+sudo chown nginx:nginx /var/www/html/404.html /var/www/html/500.html
+sudo chmod 644 /var/www/html/404.html /var/www/html/500.html
 
 # Testar configuração do Nginx
 if sudo nginx -t; then

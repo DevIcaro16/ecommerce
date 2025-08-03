@@ -81,6 +81,8 @@ jobs:
           path: |
             docker-compose.prod.yml
             infra/nginx/ominx.conf
+            infra/nginx/404.html
+            infra/nginx/500.html
           retention-days: 30
 
   deploy:
