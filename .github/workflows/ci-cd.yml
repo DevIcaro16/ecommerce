@@ -1,88 +1,319 @@
-name: CI/CD Pipeline
+name: Build and Deploy to EC2
 
 on:
   push:
     branches: [main, develop]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy to"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - staging
 
 env:
-  REGISTRY: docker.io
-  IMAGE_NAME: devicaro18
+  DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+  DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
+  REPOSITORY_NAME: ominx
+  VERSION: ${{ github.sha }}
 
 jobs:
-  build-and-deploy:
-    runs-on: self-hosted # Runner na sua EC2
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+  build:
+    name: Build and Push das imagens Docker
+    runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
         with:
-          node-version: "18"
-          cache: "npm"
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build applications
+      - name: Build and push API Gateway image
         run: |
-          # Build API Gateway
-          npx nx build api-gateway
+          docker build -f ./apps/api-gateway/Dockerfile \
+            -t ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:${{ env.VERSION }} \
+            -t ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:latest \
+            .
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:${{ env.VERSION }}
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:latest
 
-          # Build Auth Service
-          npx nx build auth-service
-
-          # Build User UI
-          npx nx build user-ui
-
-      - name: Build Docker images locally
+      - name: Build and push Auth Service image
         run: |
-          # Build API Gateway
-          docker build -f ./apps/api-gateway/Dockerfile -t api-gateway:${{ github.sha }} .
+          docker build -f ./apps/auth-service/Dockerfile \
+            -t ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:${{ env.VERSION }} \
+            -t ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:latest \
+            .
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:${{ env.VERSION }}
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:latest
 
-          # Build Auth Service
-          docker build -f ./apps/auth-service/Dockerfile -t auth-service:${{ github.sha }} .
-
-          # Build User UI
-          docker build -f ./apps/user-ui/Dockerfile -t user-ui:${{ github.sha }} .
-
-      - name: Deploy to Kubernetes
+      - name: Build and push User UI image
         run: |
-          # Aplicar namespace se não existir
-          minikube start
-          kubectl create namespace ecommerce --dry-run=client -o yaml | kubectl apply -f -
+          docker build -f ./apps/user-ui/Dockerfile \
+            -t ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }} \
+            -t ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:latest \
+            .
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }}
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:latest
 
-          # Aplicar ConfigMap
-          kubectl apply -f infra/k8s/configmap.yaml
-
-          # Aplicar deployments
-          kubectl apply -f infra/k8s/api-gateway-deployment.yaml
-          kubectl apply -f infra/k8s/auth-service-deployment.yaml
-          kubectl apply -f infra/k8s/user-ui-deployment.yaml
-
-          # Aplicar ingress
-          kubectl apply -f infra/k8s/ingress.yaml
-
-          # Atualizar imagens nos deployments
-          kubectl set image deployment/api-gateway api-gateway=api-gateway:${{ github.sha }} -n ecommerce
-          kubectl set image deployment/auth-service auth-service=auth-service:${{ github.sha }} -n ecommerce
-          kubectl set image deployment/user-ui user-ui=user-ui:${{ github.sha }} -n ecommerce
-
-          # Aguardar rollout
-          kubectl rollout status deployment/api-gateway -n ecommerce
-          kubectl rollout status deployment/auth-service -n ecommerce
-          kubectl rollout status deployment/user-ui -n ecommerce
-
-      - name: Show deployment status
+      - name: Create deployment info
         run: |
-          echo "=== Pods Status ==="
-          kubectl get pods -n ecommerce
+          echo "API_GATEWAY_IMAGE=${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:${{ env.VERSION }}" >> $GITHUB_ENV
+          echo "AUTH_SERVICE_IMAGE=${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:${{ env.VERSION }}" >> $GITHUB_ENV
+          echo "USER_UI_IMAGE=${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }}" >> $GITHUB_ENV
+          echo "DEPLOYMENT_TIME=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_ENV
 
-          echo "=== Services Status ==="
-          kubectl get services -n ecommerce
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-info
+          path: |
+            docker-compose.prod.yml
+            infra/nginx/ominx.conf
+          retention-days: 30
 
-          echo "=== Ingress Status ==="
-          kubectl get ingress -n ecommerce
+  deploy:
+    name: Deploy na EC2
+    runs-on: self-hosted
+    needs: build
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch'
+
+    environment: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker (User e Grupo)
+        run: |
+          sudo systemctl start docker
+          sudo usermod -aG docker $USER
+
+      - name: Criando .env
+        run: |
+          cat > .env << EOF
+          # Configurações JWT
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_EXPIRES_IN=${{ secrets.JWT_EXPIRES_IN }}
+
+          # Configurações do Frontend
+          NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_AUTH_URL=${{ secrets.NEXT_PUBLIC_AUTH_URL }}
+
+          # Configurações para EC2/AWS
+          EC2_PUBLIC_IP=${{ secrets.EC2_PUBLIC_IP }}
+          DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}
+
+          # Configurações do Servidor
+          HOST=0.0.0.0
+          PORT=8080
+          NODE_ENV=production
+          EOF
+
+      - name: Create production docker-compose
+        run: |
+          cat > docker-compose.prod.yml << EOF
+          version: '3.8'
+
+          services:
+            # Nginx Reverse Proxy
+            nginx:
+              image: nginx:alpine
+              container_name: ominx-nginx
+              ports:
+                - "80:80"
+                - "443:443"
+              volumes:
+                - ./infra/nginx/ominx.conf:/etc/nginx/conf.d/ominx.conf:ro
+              depends_on:
+                - api-gateway
+                - auth-service
+                - user-ui
+              restart: unless-stopped
+              networks:
+                - ominx-network
+
+            # API Gateway
+            api-gateway:
+              image: ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:${{ env.VERSION }}
+              container_name: ominx-api-gateway
+              expose:
+                - "8080"
+              environment:
+                - NODE_ENV=production
+                - PORT=8080
+                - HOST=0.0.0.0
+              restart: unless-stopped
+              networks:
+                - ominx-network
+              depends_on:
+                - auth-service
+
+            # Auth Service
+            auth-service:
+              image: ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:${{ env.VERSION }}
+              container_name: ominx-auth-service
+              expose:
+                - "6001"
+              environment:
+                - NODE_ENV=production
+                - PORT=6001
+                - HOST=0.0.0.0
+                - JWT_SECRET=\${JWT_SECRET}
+                - JWT_EXPIRES_IN=\${JWT_EXPIRES_IN}
+              restart: unless-stopped
+              networks:
+                - ominx-network
+
+            # User UI
+            user-ui:
+              image: ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }}
+              container_name: ominx-user-ui
+              expose:
+                - "3001"
+              environment:
+                - NODE_ENV=production
+                - PORT=3001
+                - NEXT_PUBLIC_API_URL=\${NEXT_PUBLIC_API_URL}
+                - NEXT_PUBLIC_AUTH_URL=\${NEXT_PUBLIC_AUTH_URL}
+              depends_on:
+                - api-gateway
+                - auth-service
+              restart: unless-stopped
+              networks:
+                - ominx-network
+
+          networks:
+            ominx-network:
+              driver: bridge
+          EOF
+
+      - name: Stop and remove existing containers
+        run: |
+          # Stop and remove containers
+          docker-compose -f docker-compose.prod.yml down || true
+          docker stop $(docker ps -q) || true
+          docker rm $(docker ps -aq) || true
+
+      - name: Remove existing images
+        run: |
+          # Remove all images to ensure clean state
+          docker rmi $(docker images -q) || true
+          docker system prune -a -f
+
+      - name: Pull new images
+        run: |
+          # Pull the new images
+          docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:${{ env.VERSION }}
+          docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:${{ env.VERSION }}
+          docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }}
+
+      - name: Deploy das aplicações com compose
+        run: |
+          docker-compose -f docker-compose.prod.yml up -d
+
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for services to be ready..."
+          sleep 30
+
+          # Check if services are running
+          docker-compose -f docker-compose.prod.yml ps
+
+          # Show logs for debugging
+          echo "=== API Gateway logs ==="
+          docker logs ominx-api-gateway --tail 20 || true
+          echo "=== Auth Service logs ==="
+          docker logs ominx-auth-service --tail 20 || true
+          echo "=== User UI logs ==="
+          docker logs ominx-user-ui --tail 20 || true
+          echo "=== Nginx logs ==="
+          docker logs ominx-nginx --tail 20 || true
+
+          # Health check with retry
+          echo "Performing health checks..."
+          for i in {1..5}; do
+            echo "Attempt $i of 5"
+            if curl -f http://localhost/health && curl -f http://localhost/api/ && curl -f http://localhost/auth/; then
+              echo "Health checks passed!"
+              break
+            else
+              echo "Health checks failed, waiting 10 seconds..."
+              sleep 10
+            fi
+          done
+
+          # Final health check
+          curl -f http://localhost/health || (echo "Health check failed" && exit 1)
+
+      - name: Cleanup old images and containers
+        run: |
+          # Remove all stopped containers
+          docker container prune -f
+
+          # Remove all unused images
+          docker image prune -a -f
+
+          # Remove all unused networks
+          docker network prune -f
+
+          # Remove all unused volumes
+          docker volume prune -f
+
+          # Full system cleanup
+          docker system prune -a -f
+
+      - name: Send deployment notification
+        run: |
+          echo "Deploy finalizado com Sucesso!!"
+          echo "Main URL: http://${{ secrets.EC2_PUBLIC_IP }}"
+          echo "API Gateway: http://${{ secrets.EC2_PUBLIC_IP }}/api/"
+          echo "Auth Service: http://${{ secrets.EC2_PUBLIC_IP }}/auth/"
+          echo "Version: ${{ env.VERSION }}"
+          echo "Deployed at: ${{ env.DEPLOYMENT_TIME }}"
+
+      - name: Create deployment summary
+        run: |
+          cat > deployment-summary.md << EOF
+          # Deployment Summary
+
+          ## Deployment Information
+          - **Version**: ${{ env.VERSION }}
+          - **Deployed at**: ${{ env.DEPLOYMENT_TIME }}
+          - **Environment**: ${{ github.event.inputs.environment || 'production' }}
+
+          ## Services
+          - **API Gateway**: ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:${{ env.VERSION }}
+          - **Auth Service**: ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:${{ env.VERSION }}
+          - **User UI**: ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }}
+
+          ## URLs
+          - **Main**: http://${{ secrets.EC2_PUBLIC_IP }}
+          - **API Gateway**: http://${{ secrets.EC2_PUBLIC_IP }}/api/
+          - **Auth Service**: http://${{ secrets.EC2_PUBLIC_IP }}/auth/
+          - **Health Check**: http://${{ secrets.EC2_PUBLIC_IP }}/health
+
+          ## Health Check
+          - API Gateway: Running
+          - Auth Service: Running
+          - User UI: Running
+          - Nginx: Running
+          EOF
+
+      - name: Upload deployment summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-summary
+          path: deployment-summary.md
+          retention-days: 30
