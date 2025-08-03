@@ -336,7 +336,7 @@ jobs:
           echo "Configurando Nginx com proxy reverso..."
 
           # Aguardar um pouco para garantir que os pods estão prontos
-          sleep 30
+          sleep 10
 
           # Tornar script executável
           chmod +x infra/scripts/setup-nginx-k8s.sh
@@ -349,3 +349,61 @@ jobs:
           sudo systemctl start nginx
 
           echo "Nginx configurado com proxy reverso para Kubernetes!"
+
+      - name: Setup Port-Forwards Explicitly
+        run: |
+          echo "Configurando port-forwards explicitamente..."
+
+          # Parar port-forwards existentes
+          pkill -f "kubectl port-forward" || true
+          sleep 2
+
+          # Iniciar port-forwards para os serviços
+          echo "Iniciando port-forwards..."
+
+          # Port-forward para auth-service (porta 30061)
+          kubectl port-forward svc/auth-service 30061:6001 -n ecommerce &
+          AUTH_PID=$!
+
+          # Port-forward para api-gateway-service (porta 30080)
+          kubectl port-forward svc/api-gateway-service 30080:8080 -n ecommerce &
+          API_PID=$!
+
+          # Port-forward para user-ui-service (porta 30301)
+          kubectl port-forward svc/user-ui-service 30301:3001 -n ecommerce &
+          UI_PID=$!
+
+          # Aguardar um pouco para os port-forwards ficarem ativos
+          echo "Aguardando port-forwards ficarem ativos..."
+          sleep 10
+
+          # Verificar se os port-forwards estão funcionando
+          echo "Verificando port-forwards..."
+
+          # Testar auth-service
+          if curl -s http://localhost:30061/api > /dev/null; then
+              echo "✅ Auth Service: http://localhost:30061"
+          else
+              echo "❌ Auth Service não está respondendo"
+          fi
+
+          # Testar api-gateway
+          if curl -s http://localhost:30080/gateway-health > /dev/null; then
+              echo "✅ API Gateway: http://localhost:30080"
+          else
+              echo "❌ API Gateway não está respondendo"
+          fi
+
+          # Testar user-ui
+          if curl -s http://localhost:30301/ > /dev/null; then
+              echo "✅ User UI: http://localhost:30301"
+          else
+              echo "❌ User UI não está respondendo"
+          fi
+
+          # Salvar PIDs para gerenciamento
+          echo $AUTH_PID > /tmp/auth-portforward.pid
+          echo $API_PID > /tmp/api-portforward.pid
+          echo $UI_PID > /tmp/ui-portforward.pid
+
+          echo "Port-forwards configurados com sucesso!"
