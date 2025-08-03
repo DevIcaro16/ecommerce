@@ -153,9 +153,9 @@ jobs:
       - name: Pull new images
         run: |
           # Pull the new images
-          docker pull ${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:${{ env.VERSION }}
-          docker pull ${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:${{ env.VERSION }}
-          docker pull ${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }}
+          docker pull devicaro18/ominx-api-gateway:${{ env.VERSION }}
+          docker pull devicaro18/ominx-auth-service:${{ env.VERSION }}
+          docker pull devicaro18/ominx-user-ui:${{ env.VERSION }}
 
       - name: Setup Kubernetes
         run: |
@@ -187,9 +187,9 @@ jobs:
           kubectl apply -f infra/k8s/ingress.yaml
 
           # Atualizar imagens nos deployments
-          kubectl set image deployment/api-gateway api-gateway=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:${{ env.VERSION }} -n ecommerce
-          kubectl set image deployment/auth-service auth-service=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:${{ env.VERSION }} -n ecommerce
-          kubectl set image deployment/user-ui user-ui=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }} -n ecommerce
+          kubectl set image deployment/api-gateway api-gateway=devicaro18/ominx-api-gateway:${{ env.VERSION }} -n ecommerce
+          kubectl set image deployment/auth-service auth-service=devicaro18/ominx-auth-service:${{ env.VERSION }} -n ecommerce
+          kubectl set image deployment/user-ui user-ui=devicaro18/ominx-user-ui:${{ env.VERSION }} -n ecommerce
 
           # Aguardar rollout
           echo "Waiting for deployments to be ready..."
