@@ -246,20 +246,15 @@ jobs:
           echo "Performing health checks..."
           MINIKUBE_IP=$(minikube ip)
 
-          # Adicionar hosts temporariamente para teste
-          echo "$MINIKUBE_IP api.ecommerce.local" | sudo tee -a /etc/hosts
-          echo "$MINIKUBE_IP auth.ecommerce.local" | sudo tee -a /etc/hosts
-          echo "$MINIKUBE_IP ecommerce.local" | sudo tee -a /etc/hosts
-
       - name: Setup Nginx Proxy
         run: |
           echo "Configurando Nginx com proxy reverso..."
 
           # Tornar script executável
-          chmod +x infra/scripts/setup-nginx-k8s.sh
+          #chmod +x infra/scripts/setup-nginx-k8s.sh
 
           # Executar configuração do Nginx
-          ./infra/scripts/setup-nginx-k8s.sh
+          #./infra/scripts/setup-nginx-k8s.sh
 
           # Verificar se Nginx está rodando
           sudo systemctl status nginx
