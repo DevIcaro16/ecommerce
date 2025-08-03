@@ -18,7 +18,7 @@ spec:
               service:
                 name: api-gateway-service
                 port:
-                  number: 3000
+                  number: 8080
     - host: auth.ecommerce.local
       http:
         paths:
@@ -28,7 +28,7 @@ spec:
               service:
                 name: auth-service
                 port:
-                  number: 3001
+                  number: 6001
     - host: ecommerce.local
       http:
         paths:
@@ -38,4 +38,4 @@ spec:
               service:
                 name: user-ui-service
                 port:
-                  number: 3000
+                  number: 3001

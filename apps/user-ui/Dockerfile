@@ -33,6 +33,6 @@ COPY --from=builder --chown=nodejs:nodejs /app/apps/user-ui/next.config.js ./
 COPY --from=builder --chown=nodejs:nodejs /app/apps/user-ui/tailwind.config.js ./
 COPY --from=builder --chown=nodejs:nodejs /app/apps/user-ui/postcss.config.js ./
 
+EXPOSE 3001
 
-# Comando para iniciar a aplicação
-CMD ["npx", "nx", "start", "user-ui"] 
+CMD ["npx", "next", "start"]

@@ -15,6 +15,6 @@ data:
   JWT_EXPIRES_IN: "24h"
 
   # User UI Config
-  USER_UI_PORT: "3000"
-  NEXT_PUBLIC_API_URL: "http://api-gateway-service:3000"
+  USER_UI_PORT: "3001"
+  NEXT_PUBLIC_API_URL: "http://api-gateway-service:3001"
   NEXT_PUBLIC_AUTH_URL: "http://auth-service:3001"
