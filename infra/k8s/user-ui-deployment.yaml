@@ -54,10 +54,11 @@ metadata:
   labels:
     app: user-ui
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
     - port: 3001
       targetPort: 3001
+      nodePort: 3001
       protocol: TCP
       name: http
   selector:

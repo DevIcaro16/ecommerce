@@ -59,10 +59,11 @@ metadata:
   labels:
     app: auth-service
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
     - port: 6001
       targetPort: 6001
+      nodePort: 6001
       protocol: TCP
       name: http
   selector:

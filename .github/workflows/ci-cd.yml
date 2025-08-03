@@ -170,6 +170,12 @@ jobs:
           kubectl cluster-info
           kubectl get nodes
 
+      - name: Setup Ingress Controller
+        run: |
+          # Configurar Ingress Controller
+          chmod +x infra/scripts/setup-ingress.sh
+          ./infra/scripts/setup-ingress.sh
+
       - name: Deploy to Kubernetes
         run: |
           # Aplicar namespace
@@ -218,9 +224,14 @@ jobs:
           echo "Performing health checks..."
           MINIKUBE_IP=$(minikube ip)
 
+          # Adicionar hosts temporariamente para teste
+          echo "$MINIKUBE_IP api.ecommerce.local" | sudo tee -a /etc/hosts
+          echo "$MINIKUBE_IP auth.ecommerce.local" | sudo tee -a /etc/hosts
+          echo "$MINIKUBE_IP ecommerce.local" | sudo tee -a /etc/hosts
+
           for i in {1..5}; do
             echo "Attempt $i of 5"
-            if curl -f http://$MINIKUBE_IP/health && curl -f http://$MINIKUBE_IP/api/ && curl -f http://$MINIKUBE_IP/auth/; then
+            if curl -f http://ecommerce.local/health && curl -f http://api.ecommerce.local/ && curl -f http://auth.ecommerce.local/; then
               echo "Health checks passed!"
               break
             else
@@ -230,7 +241,7 @@ jobs:
           done
 
           # Final health check
-          curl -f http://$MINIKUBE_IP/health || (echo "Health check failed" && exit 1)
+          curl -f http://ecommerce.local/health || (echo "Health check failed" && exit 1)
 
       - name: Cleanup old images and containers
         run: |
