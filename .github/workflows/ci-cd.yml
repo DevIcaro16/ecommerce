@@ -100,6 +100,13 @@ jobs:
           sudo systemctl start docker
           sudo usermod -aG docker $USER
 
+          # Verificar se Docker está funcionando
+          docker info
+          docker version
+
+          # Verificar se o usuário está no grupo docker
+          groups $USER
+
       - name: Criando .env
         run: |
           cat > .env << EOF
@@ -156,8 +163,8 @@ jobs:
           minikube stop || true
           minikube delete || true
 
-          # Iniciar Minikube com driver none (mais simples)
-          minikube start --driver=none --force
+          # Iniciar Minikube com driver docker (mais simples)
+          minikube start --driver=docker --force
 
           # Verificar status do Kubernetes
           kubectl cluster-info
