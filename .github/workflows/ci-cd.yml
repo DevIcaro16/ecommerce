@@ -121,88 +121,19 @@ jobs:
           NODE_ENV=production
           EOF
 
-      - name: Create production docker-compose
+      - name: Stop any existing containers
         run: |
-          cat > docker-compose.prod.yml << EOF
-          version: '3.8'
+          # Parar containers que possam estar usando as portas
+          docker stop $(docker ps -q) || true
+          docker rm $(docker ps -aq) || true
 
-          services:
-            # Nginx Reverse Proxy
-            nginx:
-              image: nginx:alpine
-              container_name: ominx-nginx
-              ports:
-                - "80:80"
-                - "443:443"
-              volumes:
-                - ./infra/nginx/ominx.conf:/etc/nginx/conf.d/ominx.conf:ro
-              depends_on:
-                - api-gateway
-                - auth-service
-                - user-ui
-              restart: unless-stopped
-              networks:
-                - ominx-network
+          # Parar serviços do sistema que possam estar usando as portas
+          sudo systemctl stop nginx || true
+          sudo systemctl disable nginx || true
 
-            # API Gateway
-            api-gateway:
-              image: ${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:${{ env.VERSION }}
-              container_name: ominx-api-gateway
-              expose:
-                - "8080"
-              environment:
-                - NODE_ENV=production
-                - PORT=8080
-                - HOST=0.0.0.0
-              restart: unless-stopped
-              networks:
-                - ominx-network
-              depends_on:
-                - auth-service
-
-            # Auth Service
-            auth-service:
-              image: ${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:${{ env.VERSION }}
-              container_name: ominx-auth-service
-              expose:
-                - "6001"
-              environment:
-                - NODE_ENV=production
-                - PORT=6001
-                - HOST=0.0.0.0
-                - JWT_SECRET=\${JWT_SECRET}
-                - JWT_EXPIRES_IN=\${JWT_EXPIRES_IN}
-              restart: unless-stopped
-              networks:
-                - ominx-network
-
-            # User UI
-            user-ui:
-              image: ${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }}
-              container_name: ominx-user-ui
-              expose:
-                - "3001"
-              environment:
-                - NODE_ENV=production
-                - PORT=3001
-                - NEXT_PUBLIC_API_URL=\${NEXT_PUBLIC_API_URL}
-                - NEXT_PUBLIC_AUTH_URL=\${NEXT_PUBLIC_AUTH_URL}
-              depends_on:
-                - api-gateway
-                - auth-service
-              restart: unless-stopped
-              networks:
-                - ominx-network
-
-          networks:
-            ominx-network:
-              driver: bridge
-          EOF
-
-      - name: Stop and remove existing containers
+      - name: Clean up Docker resources
         run: |
-          # Stop and remove containers
-          docker-compose -f docker-compose.prod.yml down || true
+          # Clean up any remaining containers
           docker stop $(docker ps -q) || true
           docker rm $(docker ps -aq) || true
 
@@ -219,33 +150,71 @@ jobs:
           docker pull ${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:${{ env.VERSION }}
           docker pull ${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }}
 
-      - name: Deploy das aplicações com compose
+      - name: Setup Kubernetes
         run: |
-          docker-compose -f docker-compose.prod.yml up -d
+          # Iniciar Minikube se não estiver rodando
+          if ! minikube status >/dev/null 2>&1; then
+            echo "Starting Minikube..."
+            minikube start --driver=docker --force
+          else
+            echo "Minikube is already running"
+          fi
+
+          # Verificar status do Kubernetes
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Deploy to Kubernetes
+        run: |
+          # Aplicar namespace
+          kubectl create namespace ecommerce --dry-run=client -o yaml | kubectl apply -f -
+
+          # Aplicar ConfigMap
+          kubectl apply -f infra/k8s/configmap.yaml
+
+          # Aplicar deployments
+          kubectl apply -f infra/k8s/api-gateway-deployment.yaml
+          kubectl apply -f infra/k8s/auth-service-deployment.yaml
+          kubectl apply -f infra/k8s/user-ui-deployment.yaml
+
+          # Aplicar ingress
+          kubectl apply -f infra/k8s/ingress.yaml
+
+          # Atualizar imagens nos deployments
+          kubectl set image deployment/api-gateway api-gateway=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:${{ env.VERSION }} -n ecommerce
+          kubectl set image deployment/auth-service auth-service=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-auth-service:${{ env.VERSION }} -n ecommerce
+          kubectl set image deployment/user-ui user-ui=${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }} -n ecommerce
+
+          # Aguardar rollout
+          echo "Waiting for deployments to be ready..."
+          kubectl rollout status deployment/api-gateway -n ecommerce --timeout=300s
+          kubectl rollout status deployment/auth-service -n ecommerce --timeout=300s
+          kubectl rollout status deployment/user-ui -n ecommerce --timeout=300s
 
       - name: Wait for services to be ready
         run: |
           echo "Waiting for services to be ready..."
           sleep 30
 
-          # Check if services are running
-          docker-compose -f docker-compose.prod.yml ps
+          # Verificar status dos pods
+          echo "=== Pods Status ==="
+          kubectl get pods -n ecommerce
 
-          # Show logs for debugging
-          echo "=== API Gateway logs ==="
-          docker logs ominx-api-gateway --tail 20 || true
-          echo "=== Auth Service logs ==="
-          docker logs ominx-auth-service --tail 20 || true
-          echo "=== User UI logs ==="
-          docker logs ominx-user-ui --tail 20 || true
-          echo "=== Nginx logs ==="
-          docker logs ominx-nginx --tail 20 || true
+          # Verificar status dos serviços
+          echo "=== Services Status ==="
+          kubectl get services -n ecommerce
 
-          # Health check with retry
+          # Verificar status do ingress
+          echo "=== Ingress Status ==="
+          kubectl get ingress -n ecommerce
+
+          # Health check com retry
           echo "Performing health checks..."
+          MINIKUBE_IP=$(minikube ip)
+
           for i in {1..5}; do
             echo "Attempt $i of 5"
-            if curl -f http://localhost/health && curl -f http://localhost/api/ && curl -f http://localhost/auth/; then
+            if curl -f http://$MINIKUBE_IP/health && curl -f http://$MINIKUBE_IP/api/ && curl -f http://$MINIKUBE_IP/auth/; then
               echo "Health checks passed!"
               break
             else
@@ -255,7 +224,7 @@ jobs:
           done
 
           # Final health check
-          curl -f http://localhost/health || (echo "Health check failed" && exit 1)
+          curl -f http://$MINIKUBE_IP/health || (echo "Health check failed" && exit 1)
 
       - name: Cleanup old images and containers
         run: |
@@ -276,15 +245,18 @@ jobs:
 
       - name: Send deployment notification
         run: |
+          MINIKUBE_IP=$(minikube ip)
           echo "Deploy finalizado com Sucesso!!"
-          echo "Main URL: http://${{ secrets.EC2_PUBLIC_IP }}"
-          echo "API Gateway: http://${{ secrets.EC2_PUBLIC_IP }}/api/"
-          echo "Auth Service: http://${{ secrets.EC2_PUBLIC_IP }}/auth/"
+          echo "Main URL: http://$MINIKUBE_IP"
+          echo "API Gateway: http://$MINIKUBE_IP/api/"
+          echo "Auth Service: http://$MINIKUBE_IP/auth/"
           echo "Version: ${{ env.VERSION }}"
           echo "Deployed at: ${{ env.DEPLOYMENT_TIME }}"
+          echo "Minikube IP: $MINIKUBE_IP"
 
       - name: Create deployment summary
         run: |
+          MINIKUBE_IP=$(minikube ip)
           cat > deployment-summary.md << EOF
           # Deployment Summary
 
@@ -292,6 +264,7 @@ jobs:
           - **Version**: ${{ env.VERSION }}
           - **Deployed at**: ${{ env.DEPLOYMENT_TIME }}
           - **Environment**: ${{ github.event.inputs.environment || 'production' }}
+          - **Minikube IP**: $MINIKUBE_IP
 
           ## Services
           - **API Gateway**: ${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-api-gateway:${{ env.VERSION }}
@@ -299,16 +272,22 @@ jobs:
           - **User UI**: ${{ secrets.DOCKER_USERNAME }}/${{ env.REPOSITORY_NAME }}-user-ui:${{ env.VERSION }}
 
           ## URLs
-          - **Main**: http://${{ secrets.EC2_PUBLIC_IP }}
-          - **API Gateway**: http://${{ secrets.EC2_PUBLIC_IP }}/api/
-          - **Auth Service**: http://${{ secrets.EC2_PUBLIC_IP }}/auth/
-          - **Health Check**: http://${{ secrets.EC2_PUBLIC_IP }}/health
+          - **Main**: http://$MINIKUBE_IP
+          - **API Gateway**: http://$MINIKUBE_IP/api/
+          - **Auth Service**: http://$MINIKUBE_IP/auth/
+          - **Health Check**: http://$MINIKUBE_IP/health
+
+          ## Kubernetes Resources
+          - **Namespace**: ecommerce
+          - **Pods**: 3 (api-gateway, auth-service, user-ui)
+          - **Services**: 3 (ClusterIP)
+          - **Ingress**: 1 (nginx)
 
           ## Health Check
           - API Gateway: Running
           - Auth Service: Running
           - User UI: Running
-          - Nginx: Running
+          - Ingress Controller: Running
           EOF
 
       - name: Upload deployment summary

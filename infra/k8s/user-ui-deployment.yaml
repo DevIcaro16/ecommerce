@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: user-ui
-          image: user-ui:latest
+          image: ${{ secrets.DOCKER_USERNAME }}/ominx-user-ui:latest
           ports:
             - containerPort: 3000
           env:
