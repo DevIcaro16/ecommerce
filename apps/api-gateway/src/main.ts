@@ -45,15 +45,14 @@ app.get('/gateway-health', (req, res) => {
   res.send({ message: 'Bem vindo ao api-gateway!' });
 });
 
-// Usar NodePort do auth-service (30061) em vez da porta interna (6001)
-const AUTH_SERVICE_NODEPORT = process.env.AUTH_SERVICE_NODEPORT || '6001';
-app.use('/', proxy(`http://localhost:${AUTH_SERVICE_NODEPORT}`));
+// Usar auth-service:6001 quando estiver no cluster K8S, senão localhost:6001
+const authServiceUrl = process.env.KUBERNETES_SERVICE_HOST ? 'http://auth-service:6001' : 'http://localhost:6001';
+app.use('/', proxy(authServiceUrl));
 
 const port = process.env.PORT || 8080;
 
 const server = app.listen(port, () => {
   console.log(`api-gateway ON no endereço: http://localhost:${port}/api`);
-  console.log(`Proxy para: http://localhost:${AUTH_SERVICE_NODEPORT}`);
 });
 
 server.on('error', console.error);

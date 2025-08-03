@@ -33,11 +33,6 @@ spec:
                 configMapKeyRef:
                   name: ecommerce-config
                   key: API_GATEWAY_HOST
-            - name: AUTH_SERVICE_NODEPORT
-              valueFrom:
-                configMapKeyRef:
-                  name: ecommerce-config
-                  key: AUTH_SERVICE_NODEPORT
           resources:
             requests:
               memory: "128Mi"

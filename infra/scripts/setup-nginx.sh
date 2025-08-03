@@ -34,10 +34,6 @@ pip3 install certbot certbot-nginx
 echo -e "${GREEN}💾 Fazendo backup da configuração original...${NC}"
 cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.backup
 
-# Copiar nova configuração
-echo -e "${GREEN}📝 Aplicando nova configuração...${NC}"
-cp infra/nginx/nginx.conf /etc/nginx/nginx.conf
-
 # Testar configuração
 echo -e "${GREEN}✅ Testando configuração...${NC}"
 nginx -t

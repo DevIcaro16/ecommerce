@@ -56,7 +56,7 @@ else
 fi
 
 # Testar api-gateway
-if curl -s http://localhost:30080/ > /dev/null; then
+if curl -s http://localhost:30080/gateway-health > /dev/null; then
     echo -e "${GREEN}✅ API Gateway: http://localhost:30080${NC}"
 else
     echo -e "${RED}❌ API Gateway não está respondendo${NC}"
@@ -98,7 +98,7 @@ echo -e "${YELLOW}   Frontend: http://ominx.shop${NC}"
 echo -e "${YELLOW}   API Gateway: http://ominx.shop/api${NC}"
 echo -e "${YELLOW}   Auth Service: http://ominx.shop/auth${NC}"
 echo -e "${YELLOW}   Swagger Docs: http://ominx.shop/api-docs${NC}"
-echo -e "${YELLOW}   Health Check: http://ominx.shop/health${NC}"
+echo -e "${YELLOW}   Health Check: http://ominx.shop/gateway-health${NC}"
 
 echo -e "${GREEN}💡 Para parar os port-forwards:${NC}"
 echo -e "${YELLOW}   pkill -f 'kubectl port-forward'${NC}" 

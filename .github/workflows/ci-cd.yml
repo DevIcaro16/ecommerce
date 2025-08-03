@@ -251,20 +251,6 @@ jobs:
           echo "$MINIKUBE_IP auth.ecommerce.local" | sudo tee -a /etc/hosts
           echo "$MINIKUBE_IP ecommerce.local" | sudo tee -a /etc/hosts
 
-          for i in {1..5}; do
-            echo "Attempt $i of 5"
-            if curl -f http://ecommerce.local/health && curl -f http://api.ecommerce.local/ && curl -f http://auth.ecommerce.local/; then
-              echo "Health checks passed!"
-              break
-            else
-              echo "Health checks failed, waiting 10 seconds..."
-              sleep 10
-            fi
-          done
-
-          # Final health check
-          curl -f http://ecommerce.local/health || (echo "Health check failed" && exit 1)
-
       - name: Setup Nginx Proxy
         run: |
           echo "Configurando Nginx com proxy reverso..."

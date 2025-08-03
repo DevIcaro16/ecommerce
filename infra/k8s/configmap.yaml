@@ -11,7 +11,7 @@ data:
   # Auth Service Config
   AUTH_SERVICE_PORT: "6001"
   AUTH_SERVICE_HOST: "0.0.0.0"
-  AUTH_SERVICE_NODEPORT: "30061"
+  AUTH_SERVICE_URL: "http://auth-service:6001"
 
   # User UI Config
   USER_UI_PORT: "3001"
