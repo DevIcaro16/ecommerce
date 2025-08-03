@@ -152,13 +152,8 @@ jobs:
 
       - name: Setup Kubernetes
         run: |
-          # Iniciar Minikube se não estiver rodando
-          if ! sudo minikube status >/dev/null 2>&1; then
-            echo "Starting Minikube..."
-            sudo minikube start --driver=none --force
-          else
-            echo "Minikube is already running"
-          fi
+
+          sudo minikube start --driver=none
 
           # Verificar status do Kubernetes
           sudo kubectl cluster-info
